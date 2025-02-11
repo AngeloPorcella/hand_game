@@ -9,7 +9,7 @@ Watch out, each shape can de-spawn after a set period.
 
 # Setup
 
-Requires OpenCV, and MediaPipe.
+Requires Numpy, OpenCV, and MediaPipe
 
 Run the commands:
 ```
