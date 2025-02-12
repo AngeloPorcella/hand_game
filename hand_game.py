@@ -97,25 +97,27 @@ def start_screen():
         # cv2.circle(frame, (left[0], left[1]), left[2], (255, 0, 255), -1)
         # cv2.circle(frame, (right[0], right[1]), right[2], (255, 0, 255), -1)
 
-        cv2.imshow('Hand Detection', frame)
+        cv2.imshow('Balloon Popper', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             return 0
 
 
-
-def run(difficulty):
+def run(selected_difficulty):
     win_flag = False
     start_time = None
     score = 0
     timer_diff = None
     score_diff = None
-    if difficulty == 1:
+    color = None
+    if selected_difficulty == 1:
         timer_diff = 100
         score_diff = 15
-    elif difficulty == 2:
+        color = (255, 0, 0)
+    elif selected_difficulty == 2:
         timer_diff = 50
         score_diff = 25
-    elif difficulty == 0:
+        color = (255, 0, 255)
+    elif selected_difficulty == 0:
         return
     if timer_diff is None:
         return
@@ -144,7 +146,7 @@ def run(difficulty):
         for shape in shapes[:]:
             if win_flag:
                 spawn_shape_victory()
-                cv2.circle(frame, (shape[0], shape[1]), shape[2], (255, 0, 255), -1)
+                cv2.circle(frame, (shape[0], shape[1]), shape[2], (color[0], color[1], color[2]), -1)
             else:
                 # Take info from tuple
                 x_loc = shape[0]
@@ -168,7 +170,7 @@ def run(difficulty):
                         score += 1
                         break
                 else:
-                    cv2.circle(frame, (shape[0], shape[1]), shape[2], (255, 0, 255), -1)
+                    cv2.circle(frame, (shape[0], shape[1]), shape[2], (color[0], color[1], color[2]), -1)
         # Display Score
         cv2.putText(frame, f"Score: {score}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
@@ -183,7 +185,7 @@ def run(difficulty):
             if elapsed >= 5:
                 break
         # Display the resulting frame
-        cv2.imshow('Hand Detection', frame)
+        cv2.imshow('Balloon Popper', frame)
 
         # Press q to exit at any time
         if cv2.waitKey(1) & 0xFF == ord('q'):
