@@ -16,6 +16,22 @@ results = []
 # Last 2 gestures chosen
 pulled_gestures = []
 
+celebration_list = ["FUCK YEAH!",
+                    "Yay!",
+                    "Good Job!",
+                    "Keep Going!",
+                    "Booya!",
+                    "Sick!",
+                    "Right On!",
+                    "You Rock!",
+                    "Huzzah!",
+                    "Excelsior!",
+                    "Hurray!",
+                    "Yippie!!!",
+                    "You got this!",
+                    "YeeHaw!",
+                    "WooHoo!"
+                    ]
 # available gestures and common names
 gesture_dict = {"Closed_Fist": "Closed Fist",
                 "Open_Palm": "High Five",
@@ -24,6 +40,9 @@ gesture_dict = {"Closed_Fist": "Closed Fist",
                 "Thumb_Up": "Thumbs Up",
                 "Victory": "Peace Sign",
                 "ILoveYou": "I Love You"}
+gesture_dict_easy = {"Closed_Fist": "Closed Fist",
+                     "Open_Palm": "High Five",
+                     "Pointing_Up": "Point Up"}
 gesture_list = list(gesture_dict.keys())
 informal_gesture_list_names = list(gesture_dict.values())
 
@@ -31,7 +50,7 @@ informal_gesture_list_names = list(gesture_dict.values())
 # ensures list has context window of 15 frames for some future uses I cannot forsee
 def add_to_list(item):
     size = len(results)
-    if size > 15:
+    if size >= 15:
         results.pop(0)
     results.append(item)
 
@@ -39,7 +58,7 @@ def add_to_list(item):
 # length 2 buffer to ensure no duplicate pulls
 def add_to_pulled_gestures(item):
     size = len(pulled_gestures)
-    if size > 2:
+    if size >= 2:
         pulled_gestures.pop(0)
     pulled_gestures.append(item)
 
@@ -71,10 +90,8 @@ def check_gesture():
     pulled_gesture = get_latest_pulled_gesture()
     result_gesture = get_latest_result()
     if pulled_gesture == result_gesture:
-        print("Correct!")
         return True, time.time()
     else:
-        print("Wrong!")
         return False, None
 
 
@@ -105,8 +122,15 @@ def handle_result(result: vision.GestureRecognizerResult, unused_image, timestam
 
 
 def main_loop():
+    start_time = time.time()
+    end_time = 0
+    time_elapsed = 0
     gesture_check = False
+    score = 0
     model_path = os.path.abspath("gesture_recognizer.task")
+    pick_next_gesture()
+    print(get_latest_pulled_gesture())
+
 
 
     options = GestureRecognizerOptions(
@@ -128,8 +152,22 @@ def main_loop():
         if not ret:
             break
 
-        if check_gesture()
-        gesture_check = check_gesture()
+
+
+        frame = cv2.flip(frame, 1)
+        frame_height, frame_width = frame.shape[:2]
+
+        box_x, box_y = 1, 1
+        box_width, box_height = 400, 100
+
+        cv2.rectangle(frame, (box_x, box_y), (box_x + box_width,  box_y + box_height), (128, 128, 128), -1)
+
+        # Print next gesture on screen
+        cv2.putText(frame, gesture_dict[get_latest_pulled_gesture()], (int(10), int(30)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(frame, str(round(time_elapsed, 3)) + " Seconds", (int(10), int(75)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
         # Convert to RGB
         image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
@@ -141,11 +179,30 @@ def main_loop():
 
         recognizer.recognize_async(mp_image, timestamp)
 
+        if gesture_check is True:
+            print("Correct!")
+            score += 1
+            gesture_check = False
+            # Grab time elapsed between being shown the gesture and successfully making it
+            time_elapsed = time_diff(end_time, start_time)
+            print("Time elapsed: " + str(time_diff(end_time, start_time)))
+            celebration = random.choice(celebration_list)
+            (text_width, text_height), _ = cv2.getTextSize(celebration, cv2.FONT_HERSHEY_SIMPLEX, 2, 2)
+            # Flash screen green
+            frame[:] = (0, 255, 0)
+            cv2.putText(frame, celebration, (int((frame_width - text_width)/2), int((frame_height - text_height)/2)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 2)
+            cv2.imshow("Gesture Recognition", frame)
+            cv2.waitKey(400)  # Show green for x ms
 
+            pick_next_gesture()
+            print(get_latest_pulled_gesture())
+            start_time = time.time()
 
-
+        gesture_check, end_time = check_gesture()
 
         cv2.imshow("Gesture Recognition", frame)
+
         if cv2.waitKey(1) & 0xFF == 27:  # ESC to quit
             break
 
