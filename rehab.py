@@ -122,6 +122,12 @@ def handle_result(result: vision.GestureRecognizerResult, unused_image, timestam
 
 
 def main_loop():
+    # TODO Track score
+    # TODO Track average time between gestures
+    # TODO Append files to store data
+    # TODO Solve startup bug
+    # TODO Build up start screen and end screen
+    # TODO Build up graphing component on start menu
     start_time = time.time()
     end_time = 0
     time_elapsed = 0
@@ -130,6 +136,8 @@ def main_loop():
     model_path = os.path.abspath("gesture_recognizer.task")
     pick_next_gesture()
     print(get_latest_pulled_gesture())
+    game_time_start = time.time()
+    game_time_elapsed = 0
 
 
 
@@ -162,10 +170,14 @@ def main_loop():
 
         cv2.rectangle(frame, (box_x, box_y), (box_x + box_width,  box_y + box_height), (128, 128, 128), -1)
 
+        game_time_elapsed = time_diff(time.time(), game_time_start)
+
         # Print next gesture on screen
         cv2.putText(frame, gesture_dict[get_latest_pulled_gesture()], (int(10), int(30)),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
         cv2.putText(frame, str(round(time_elapsed, 3)) + " Seconds", (int(10), int(75)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(frame, str(int(60 - game_time_elapsed)), (int(350), int(75)),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
         # Convert to RGB
@@ -204,6 +216,10 @@ def main_loop():
         cv2.imshow("Gesture Recognition", frame)
 
         if cv2.waitKey(1) & 0xFF == 27:  # ESC to quit
+            break
+
+
+        if int(game_time_elapsed) >= 60:
             break
 
     cap.release()
