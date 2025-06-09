@@ -5,6 +5,7 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import random
 import time
+import csv
 # Setup gesture recognizer task components
 BaseOptions = mp.tasks.BaseOptions
 GestureRecognizer = vision.GestureRecognizer
@@ -47,12 +48,13 @@ gesture_list = list(gesture_dict.keys())
 informal_gesture_list_names = list(gesture_dict.values())
 
 
-def append_to_tbg_file(data_list, filepath):
-    for item in data_list:
-        print("This is where I will append to a file for future graphing")
+def append_to_tbg_avg_csv(data_list):
+    avg_session_tbg = average_list(data_list)
+    with open('avg_tbg.csv', 'a') as file:
+        file.write(str(avg_session_tbg) + ", ")
 
 
-def append_to_file(data_point, filepath):
+def append_to_total(data_point):
     print("This is where I will append to a file for future graphing")
 
 
@@ -155,6 +157,7 @@ def main_loop():
     print(get_latest_pulled_gesture())
     game_time_start = time.time()
     game_time_elapsed = 0
+    tbg_list = []
 
 
 
@@ -215,6 +218,8 @@ def main_loop():
             # Grab time elapsed between being shown the gesture and successfully making it
             time_elapsed = time_diff(end_time, start_time)
             print("Time elapsed: " + str(time_diff(end_time, start_time)))
+            # Add tbg to list
+            tbg_list.append(time_elapsed)
             celebration = random.choice(celebration_list)
             (text_width, text_height), _ = cv2.getTextSize(celebration, cv2.FONT_HERSHEY_SIMPLEX, 2, 2)
             # Flash screen green
@@ -238,7 +243,7 @@ def main_loop():
 
         if int(game_time_elapsed) >= 60:
             break
-
+    append_to_tbg_avg_csv(tbg_list)
     cap.release()
     cv2.destroyAllWindows()
 
