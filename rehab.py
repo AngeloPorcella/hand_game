@@ -47,6 +47,23 @@ gesture_list = list(gesture_dict.keys())
 informal_gesture_list_names = list(gesture_dict.values())
 
 
+def append_to_tbg_file(data_list, filepath):
+    for item in data_list:
+        print("This is where I will append to a file for future graphing")
+
+
+def append_to_file(data_point, filepath):
+    print("This is where I will append to a file for future graphing")
+
+
+# Average datapoints
+def average_list(data_list):
+    total = 0
+    for item in data_list:
+        total += float(item)
+    return total / len(data_list)
+
+
 # ensures list has context window of 15 frames for some future uses I cannot forsee
 def add_to_list(item):
     size = len(results)
