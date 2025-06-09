@@ -6,6 +6,8 @@ Hand tracking via the MP library allows you to "hit" randomly spawned shapes usi
 After 10 have been hit, you win!
 Watch out, each shape can de-spawn after a set period.
 
+Following my father's stroke i'm pivoting this project to stroke recovery. I'm working on a gesture based game that can track his progress in restoring functionality to his affected hand.
+
 
 # Setup
 
