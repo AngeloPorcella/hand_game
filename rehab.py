@@ -140,26 +140,77 @@ def handle_result(result: vision.GestureRecognizerResult, unused_image, timestam
         add_to_list(gesture_name)
 
 
+def start_screen():
+
+    model_path = os.path.abspath("gesture_recognizer.task")
+    options = GestureRecognizerOptions(
+        base_options=BaseOptions(model_asset_path=model_path),
+        running_mode=VisionRunningMode.LIVE_STREAM,
+        result_callback=handle_result
+    )
+    recognizer = GestureRecognizer.create_from_options(options)
+
+    # Start webcam
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        raise RuntimeError("Error opening webcam")
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frame = cv2.flip(frame, 1)
+        frame_height, frame_width = frame.shape[:2]
+
+        box_x, box_y = 1, 1
+        box_width, box_height = 600, 100
+
+        cv2.rectangle(frame, (box_x, box_y), (box_x + box_width,  box_y + box_height), (128, 128, 128), -1)
+
+
+        # Print next gesture on screen
+        cv2.putText(frame, "Make a closed fist to start game", (int(10), int(30)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(frame, "Make a high five to view statistics", (int(10), int(75)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+
+        # Convert to RGB
+        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        # Wrap in a MediaPipe Image
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
+
+        # Use video timestamp in ms
+        timestamp = int(cap.get(cv2.CAP_PROP_POS_MSEC))
+
+        recognizer.recognize_async(mp_image, timestamp)
+
+        if get_latest_result() == "Closed_Fist":
+            return "game"
+        elif get_latest_result() == "Open_Palm":
+            return "stats"
+
+        cv2.imshow("Gesture Recognition", frame)
+
+        if cv2.waitKey(1) & 0xFF == 27:  # ESC to quit
+            break
+
 def main_loop():
-    # TODO Track score
-    # TODO Track average time between gestures
-    # TODO Append files to store data
-    # TODO Solve startup bug
     # TODO Build up start screen and end screen
     # TODO Build up graphing component on start menu
-    start_time = time.time()
+    start_time = 0
     end_time = 0
     time_elapsed = 0
     gesture_check = False
     score = 0
     model_path = os.path.abspath("gesture_recognizer.task")
     pick_next_gesture()
+    pick_next_gesture()
     print(get_latest_pulled_gesture())
-    game_time_start = time.time()
-    game_time_elapsed = 0
+    game_time_start = 0
+    first_loop = True
     tbg_list = []
-
-
 
     options = GestureRecognizerOptions(
         base_options=BaseOptions(model_asset_path=model_path),
@@ -175,15 +226,39 @@ def main_loop():
     if not cap.isOpened():
         raise RuntimeError("Error opening webcam")
 
+
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-
-
         frame = cv2.flip(frame, 1)
         frame_height, frame_width = frame.shape[:2]
+
+        # This plays first when starting
+        if first_loop:
+            # Only enter the loop once
+            first_loop = False
+            # Flash the screen green and give a message
+            splash_text = "Ready?"
+            (first_text_width, first_text_height), _ = cv2.getTextSize(splash_text, cv2.FONT_HERSHEY_SIMPLEX, 2, 2)
+            frame[:] = (0, 255, 0)
+            cv2.putText(frame, splash_text, (int((frame_width - first_text_width)/2),
+                                             int((frame_height - first_text_height)/2)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 0), 2)
+            cv2.imshow("Gesture Recognition", frame)
+            cv2.waitKey(400)  # Show message for x ms
+            splash_text = "Start!"
+            (first_text_width, first_text_height), _ = cv2.getTextSize(splash_text, cv2.FONT_HERSHEY_SIMPLEX, 2, 2)
+            frame[:] = (0, 255, 0)
+            cv2.putText(frame, splash_text, (int((frame_width - first_text_width)/2),
+                                             int((frame_height - first_text_height)/2)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 0), 2)
+            cv2.imshow("Gesture Recognition", frame)
+            cv2.waitKey(400)  # Show green for x ms
+            # Start timers after message is shown
+            game_time_start = time.time()
+            start_time = time.time()
 
         box_x, box_y = 1, 1
         box_width, box_height = 400, 100
@@ -225,7 +300,7 @@ def main_loop():
             # Flash screen green
             frame[:] = (0, 255, 0)
             cv2.putText(frame, celebration, (int((frame_width - text_width)/2), int((frame_height - text_height)/2)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 0), 2)
             cv2.imshow("Gesture Recognition", frame)
             cv2.waitKey(400)  # Show green for x ms
 
@@ -240,12 +315,18 @@ def main_loop():
         if cv2.waitKey(1) & 0xFF == 27:  # ESC to quit
             break
 
-
         if int(game_time_elapsed) >= 60:
             break
     append_to_tbg_avg_csv(tbg_list)
     cap.release()
     cv2.destroyAllWindows()
 
+
 if __name__ == "__main__":
-    main_loop()
+    player_choice = start_screen()
+    if player_choice == "game":
+        main_loop()
+    elif player_choice == "stats":
+        print("stats!")
+        #stats_screen()
+
