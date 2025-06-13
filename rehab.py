@@ -3,9 +3,13 @@ import mediapipe as mp
 import os
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+import matplotlib.pyplot as plt
 import random
 import time
 import csv
+import pandas as pd
+import numpy as np
 # Setup gesture recognizer task components
 BaseOptions = mp.tasks.BaseOptions
 GestureRecognizer = vision.GestureRecognizer
@@ -140,6 +144,32 @@ def handle_result(result: vision.GestureRecognizerResult, unused_image, timestam
         add_to_list(gesture_name)
 
 
+def create_graph_from_csv(csv_path):
+
+
+    df = pd.read_csv(csv_path)
+    if df is None:
+        print("No data in csv, play a game first.")
+    fig, ax = plt.subplots(figsize=(4, 2))
+    ax.plot(df['Sessions'], df['Average Time Between Gestures'], color='blue')
+    ax.set_title("Average Time Between Gestures")
+
+    # Attach canvas to figure and draw
+    canvas = FigureCanvas(fig)
+    canvas.draw()
+
+    # Convert to NumPy array
+    width, height = canvas.get_width_height()
+    buf = np.frombuffer(canvas.buffer_rgba(), dtype=np.uint8)
+    image = buf.reshape((height, width, 4))  # RGBA image
+
+    # Convert RGBA to BGR (OpenCV format)
+    image_bgr = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
+
+    plt.close(fig)
+    return image_bgr
+
+
 def start_screen():
 
     model_path = os.path.abspath("gesture_recognizer.task")
@@ -197,7 +227,6 @@ def start_screen():
             break
 
 def main_loop():
-    # TODO Build up start screen and end screen
     # TODO Build up graphing component on start menu
     start_time = 0
     end_time = 0
