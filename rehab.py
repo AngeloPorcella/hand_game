@@ -7,9 +7,9 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.pyplot as plt
 import random
 import time
-import csv
 import pandas as pd
 import numpy as np
+import tkinter as tk
 # Setup gesture recognizer task components
 BaseOptions = mp.tasks.BaseOptions
 GestureRecognizer = vision.GestureRecognizer
@@ -55,7 +55,7 @@ informal_gesture_list_names = list(gesture_dict.values())
 def append_to_tbg_avg_csv(data_list):
     avg_session_tbg = average_list(data_list)
     with open('avg_tbg.csv', 'a') as file:
-        file.write(str(avg_session_tbg) + ", ")
+        file.write(str(avg_session_tbg) + "\n")  # newline instead of comma+space
 
 
 def append_to_total(data_point):
@@ -145,14 +145,31 @@ def handle_result(result: vision.GestureRecognizerResult, unused_image, timestam
 
 
 def create_graph_from_csv(csv_path):
+    # Read CSV with no header (just a single column of numbers)
+    try:
+        df = pd.read_csv(csv_path, header=None, names=['avg_tbg'])
+    except FileNotFoundError:
+        print("No data, play a game first.")
+        return None
 
-
-    df = pd.read_csv(csv_path)
-    if df is None:
+    if df.empty:
         print("No data in csv, play a game first.")
+        return None
+
+    # Extract y-values (averages) and x-values (index/attempt number)
+    y_values = df['avg_tbg'].astype(float).values
+    x_values = np.arange(1, len(y_values) + 1)
+
+    # Make figure
     fig, ax = plt.subplots(figsize=(4, 2))
-    ax.plot(df['Sessions'], df['Average Time Between Gestures'], color='blue')
     ax.set_title("Average Time Between Gestures")
+    ax.set_xlabel("Session")
+    ax.set_ylabel("Avg Time")
+
+    # Plot line with points
+    ax.plot(x_values, y_values, marker='o', color='blue')
+
+    plt.show()
 
     # Attach canvas to figure and draw
     canvas = FigureCanvas(fig)
@@ -165,10 +182,16 @@ def create_graph_from_csv(csv_path):
 
     # Convert RGBA to BGR (OpenCV format)
     image_bgr = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
-
-    plt.close(fig)
     return image_bgr
 
+
+def delete_csv(file_path="avg_tbg.csv"):
+    """Delete the CSV file if it exists."""
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        print(f"{file_path} deleted (stats reset).")
+    else:
+        print(f"{file_path} not found (nothing to reset).")
 
 def start_screen():
 
@@ -179,6 +202,14 @@ def start_screen():
         result_callback=handle_result
     )
     recognizer = GestureRecognizer.create_from_options(options)
+
+    cv2.namedWindow("Gesture Recognition", cv2.WND_PROP_FULLSCREEN)
+    cv2.setWindowProperty("Gesture Recognition", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+    root = tk.Tk()
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    root.destroy()
 
     # Start webcam
     cap = cv2.VideoCapture(0)
@@ -192,16 +223,19 @@ def start_screen():
         frame = cv2.flip(frame, 1)
         frame_height, frame_width = frame.shape[:2]
 
-        box_x, box_y = 1, 1
-        box_width, box_height = 600, 100
+        frame = cv2.resize(frame, (screen_width, screen_height), interpolation=cv2.INTER_LINEAR)
+        frame_height, frame_width = frame.shape[:2]  # update after resize
 
-        cv2.rectangle(frame, (box_x, box_y), (box_x + box_width,  box_y + box_height), (128, 128, 128), -1)
-
+        box_x, box_y = int(0.01 * frame_width), int(0.01 * frame_height)  # relative positioning
+        box_width, box_height = int(0.3 * frame_width), int(0.1 * frame_height)
+        cv2.rectangle(frame, (box_x, box_y), (box_x + box_width, box_y + box_height), (128, 128, 128), -1)
 
         # Print next gesture on screen
         cv2.putText(frame, "Make a closed fist to start game", (int(10), int(30)),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
         cv2.putText(frame, "Make a high five to view statistics", (int(10), int(75)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(frame, "Make a thumbs down to reset stats! WARNING: CANNOT BE REVERTED", (int(10), int(120)),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
 
@@ -220,6 +254,15 @@ def start_screen():
             return "game"
         elif get_latest_result() == "Open_Palm":
             return "stats"
+        elif get_latest_result() == "Thumb_Down":
+            delete_csv("avg_tbg.csv")
+            # Optional: give user feedback on screen
+            cv2.putText(frame, "Stats Reset!",
+                        (int(0.4 * frame_width), int(0.5 * frame_height)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3)
+            cv2.imshow("Gesture Recognition", frame)
+            cv2.waitKey(800)  # show message for a moment
+            return "reset"
 
         cv2.imshow("Gesture Recognition", frame)
 
@@ -227,7 +270,6 @@ def start_screen():
             break
 
 def main_loop():
-    # TODO Build up graphing component on start menu
     start_time = 0
     end_time = 0
     time_elapsed = 0
@@ -356,6 +398,9 @@ if __name__ == "__main__":
     if player_choice == "game":
         main_loop()
     elif player_choice == "stats":
+        create_graph_from_csv("avg_tbg.csv")
         print("stats!")
         #stats_screen()
+    elif player_choice == "reset":
+        print("reset!")
 
