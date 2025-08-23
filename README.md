@@ -1,17 +1,24 @@
-# Overview
+## Overview
+This project consists of two applications:
 
+Hand_game.py:
 A simple game created using OpenCV and MediaPipe.
 This is an AR game similar to what you would find on the XBOX Kinect.
 Hand tracking via the MP library allows you to "hit" randomly spawned shapes using your webcam.
-After 10 have been hit, you win!
 Watch out, each shape can de-spawn after a set period.
 
-Following my father's stroke i'm pivoting this project to stroke recovery. I'm working on a gesture based game that can track his progress in restoring functionality to his affected hand.
+Rehab.py:
+Following my father's stroke i'm pivoting this project to stroke recovery.
+A gesture recgonition game using OpenCV and MediaPipe.
+The user replicates the hand signals displayed and gains score.
+Time between gestures is recorded and graphed for a tangible metric of progress.
 
 
-# Setup
+## Setup
 
-Requires Numpy, OpenCV, and MediaPipe
+I reccomend creating a virtual environment to install dependencies.
+
+Requires Numpy, pandas, OpenCV, and MediaPipe
 
 Run the commands:
 ```
