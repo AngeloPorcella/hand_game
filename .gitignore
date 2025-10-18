@@ -1,2 +1,6 @@
 # Ignore csv's
 *.csv
+# Ignore scripts to launch venvs
+*.sh
+# Ignore venv
+venv/
