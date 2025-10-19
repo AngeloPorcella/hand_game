@@ -235,7 +235,7 @@ def start_screen():
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
         cv2.putText(frame, "Make a high five to view statistics", (int(10), int(75)),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        cv2.putText(frame, "Make a thumbs down to reset stats! WARNING: CANNOT BE REVERTED", (int(10), int(120)),
+        cv2.putText(frame, "Make a thumbs down to reset stats! WARNING: CANNOT BE REVERTED TEST", (int(10), int(120)),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
 
