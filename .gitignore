@@ -1,6 +1,6 @@
 # Ignore csv's
 *.csv
-# Ignore scripts to launch venvs
+# Ignore custom launch scripts
 *.sh
-# Ignore venv
+# Ignore virtual environments
 venv/
