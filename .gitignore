@@ -4,3 +4,8 @@
 *.sh
 # Ignore virtual environments
 venv/
+
+keys/
+*.pem
+*.key
+.env
