@@ -54,6 +54,9 @@ informal_gesture_list_names = list(gesture_dict.values())
 
 def append_to_tbg_avg_csv(data_list):
     avg_session_tbg = average_list(data_list)
+    if (avg_session_tbg is 0):
+        print("No data recorded")
+        return 0
     with open('avg_tbg.csv', 'a') as file:
         file.write(str(avg_session_tbg) + "\n")  # newline instead of comma+space
 
@@ -64,6 +67,8 @@ def append_to_total(data_point):
 
 # Average datapoints
 def average_list(data_list):
+    if (len(data_list)<1):
+        return 0
     total = 0
     for item in data_list:
         total += float(item)
@@ -193,6 +198,26 @@ def delete_csv(file_path="avg_tbg.csv"):
     else:
         print(f"{file_path} not found (nothing to reset).")
 
+
+def resize_and_pad(frame, screen_width, screen_height):
+    h, w = frame.shape[:2]
+    # det scaling factor
+    scale = min(screen_width / w, screen_height /h)
+    new_w, new_h = int(w * scale), int(h * scale)
+
+    # resize using aspect ratio
+    resized = cv2.resize(frame, (new_w, new_h), interpolation = cv2.INTER_AREA)
+
+    # black bar effect
+    canvas = np.zeros((screen_height, screen_width, 3), dtype=np.uint8)
+    #Center new image
+    x_offset = (screen_width - new_w) // 2
+    y_offset = (screen_height - new_h) // 2
+    canvas[y_offset : y_offset+new_h, x_offset: x_offset+new_w] = resized
+
+    return canvas, scale, (x_offset, y_offset)
+
+
 def start_screen():
 
     model_path = os.path.abspath("gesture_recognizer.task")
@@ -221,22 +246,19 @@ def start_screen():
         if not ret:
             break
         frame = cv2.flip(frame, 1)
-        frame_height, frame_width = frame.shape[:2]
-
-        frame = cv2.resize(frame, (screen_width, screen_height), interpolation=cv2.INTER_LINEAR)
-        frame_height, frame_width = frame.shape[:2]  # update after resize
-
-        box_x, box_y = int(0.01 * frame_width), int(0.01 * frame_height)  # relative positioning
-        box_width, box_height = int(0.3 * frame_width), int(0.1 * frame_height)
-        cv2.rectangle(frame, (box_x, box_y), (box_x + box_width, box_y + box_height), (128, 128, 128), -1)
-
+        
+        #Apply resize and bars
+        frame, scale, (off_x, off_y) = resize_and_pad(frame, screen_width, screen_height)
+        
         # Print next gesture on screen
-        cv2.putText(frame, "Make a closed fist to start game", (int(10), int(30)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        cv2.putText(frame, "Make a high five to view statistics", (int(10), int(75)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        cv2.putText(frame, "Make a thumbs down to reset stats! WARNING: CANNOT BE REVERTED TEST", (int(10), int(120)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(frame, "Make a closed fist to start game", (off_x + 20, off_y + 50),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
+        cv2.putText(frame, "Make a high five to view statistics", (off_x + 20, off_y + 110),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
+        cv2.putText(frame, "Make a thumbs down to reset stats", (off_x + 20, off_y + 170),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
+        cv2.putText(frame, "WARNING: STAT RESET CANNOT BE REVERTED", (off_x + 20, off_y + 230),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5 * scale, (255, 255, 255), 2)
 
 
         # Convert to RGB
@@ -258,7 +280,7 @@ def start_screen():
             delete_csv("avg_tbg.csv")
             # Optional: give user feedback on screen
             cv2.putText(frame, "Stats Reset!",
-                        (int(0.4 * frame_width), int(0.5 * frame_height)),
+                        (int(0.4 * screen_width), int(0.5 * screen_height)),
                         cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3)
             cv2.imshow("Gesture Recognition", frame)
             cv2.waitKey(800)  # show message for a moment
@@ -282,6 +304,12 @@ def main_loop():
     game_time_start = 0
     first_loop = True
     tbg_list = []
+    #pull screen dimensions
+    root = tk.Tk()
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    root.destroy()
+
 
     options = GestureRecognizerOptions(
         base_options=BaseOptions(model_asset_path=model_path),
@@ -304,47 +332,48 @@ def main_loop():
             break
 
         frame = cv2.flip(frame, 1)
-        frame_height, frame_width = frame.shape[:2]
+        
+        #Apply resize and bars
+        frame, scale, (off_x, off_y) = resize_and_pad(frame, screen_width, screen_height)
+        
+        
+        f_h, f_w = frame.shape[:2]
 
         # This plays first when starting
         if first_loop:
-            # Only enter the loop once
             first_loop = False
-            # Flash the screen green and give a message
-            splash_text = "Ready?"
-            (first_text_width, first_text_height), _ = cv2.getTextSize(splash_text, cv2.FONT_HERSHEY_SIMPLEX, 2, 2)
-            frame[:] = (0, 255, 0)
-            cv2.putText(frame, splash_text, (int((frame_width - first_text_width)/2),
-                                             int((frame_height - first_text_height)/2)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 0), 2)
-            cv2.imshow("Gesture Recognition", frame)
-            cv2.waitKey(400)  # Show message for x ms
-            splash_text = "Start!"
-            (first_text_width, first_text_height), _ = cv2.getTextSize(splash_text, cv2.FONT_HERSHEY_SIMPLEX, 2, 2)
-            frame[:] = (0, 255, 0)
-            cv2.putText(frame, splash_text, (int((frame_width - first_text_width)/2),
-                                             int((frame_height - first_text_height)/2)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 0), 2)
-            cv2.imshow("Gesture Recognition", frame)
-            cv2.waitKey(400)  # Show green for x ms
+            # ready? Go! logic
+            for splash_text in ["Ready?", "Start!"]:
+                frame_splash, _, _ = resize_and_pad(cv2.flip(cap.read()[1], 1), screen_width, screen_height)
+                frame_splash[:] = (0, 255, 0)
+                (tw, th), _ = cv2.getTextSize(splash_text, cv2.FONT_HERSHEY_SIMPLEX, 3 * scale, 3)
+                text_x = int((f_w - tw) /2)
+                text_y = int((f_h + th) /2)
+
+                cv2.putText(frame_splash, splash_text, (text_x, text_y),
+                            cv2.FONT_HERSHEY_SIMPLEX, 3 * scale, (0,0,0), 3)
+                
+                cv2.imshow("Gesture Recognition", frame_splash)
+                cv2.waitKey(400)  # Show green for x ms
             # Start timers after message is shown
             game_time_start = time.time()
             start_time = time.time()
 
-        box_x, box_y = 1, 1
-        box_width, box_height = 400, 100
+        box_x, box_y = off_x + 10, off_y + 10
+        box_w, box_h = int(450 * scale), int(120 * scale)
 
-        cv2.rectangle(frame, (box_x, box_y), (box_x + box_width,  box_y + box_height), (128, 128, 128), -1)
+        cv2.rectangle(frame, (box_x, box_y), (box_x + box_w,  box_y + box_h), (128, 128, 128), -1)
 
         game_time_elapsed = time_diff(time.time(), game_time_start)
 
         # Print next gesture on screen
-        cv2.putText(frame, gesture_dict[get_latest_pulled_gesture()], (int(10), int(30)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        cv2.putText(frame, str(round(time_elapsed, 3)) + " Seconds", (int(10), int(75)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        cv2.putText(frame, str(int(60 - game_time_elapsed)), (int(350), int(75)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        current_gesture =  gesture_dict[get_latest_pulled_gesture()]
+        cv2.putText(frame, current_gesture, (box_x + 10, box_y + int(40 * scale)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
+        stats_text = f"{round(time_elapsed, 2)}s | Timer: {int(60 - game_time_elapsed)}"
+
+        cv2.putText(frame, stats_text, (box_x + 10, box_y + int(90 * scale)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8 * scale, (255, 255, 255), 2)
 
         # Convert to RGB
         image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -367,11 +396,15 @@ def main_loop():
             # Add tbg to list
             tbg_list.append(time_elapsed)
             celebration = random.choice(celebration_list)
-            (text_width, text_height), _ = cv2.getTextSize(celebration, cv2.FONT_HERSHEY_SIMPLEX, 2, 2)
+
+            (tw, th), _ = cv2.getTextSize(celebration, cv2.FONT_HERSHEY_SIMPLEX, 2 * scale, 2)
             # Flash screen green
-            frame[:] = (0, 255, 0)
-            cv2.putText(frame, celebration, (int((frame_width - text_width)/2), int((frame_height - text_height)/2)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 0), 2)
+
+            new_h, new_w = int((f_h - 2*off_y)), int((f_w - 2*off_x))
+            frame[off_y: off_y + new_h, off_x : off_x + new_w] = (0, 255, 0)
+            
+            cv2.putText(frame, celebration, (int((f_w - tw)/2), int((f_h - th)/2)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 2 * scale, (0, 0, 0), 2)
             cv2.imshow("Gesture Recognition", frame)
             cv2.waitKey(400)  # Show green for x ms
 
