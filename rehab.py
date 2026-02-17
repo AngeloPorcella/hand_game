@@ -10,6 +10,7 @@ import time
 import pandas as pd
 import numpy as np
 import tkinter as tk
+
 # Setup gesture recognizer task components
 BaseOptions = mp.tasks.BaseOptions
 GestureRecognizer = vision.GestureRecognizer
@@ -37,27 +38,63 @@ celebration_list = ["FUCK YEAH!",
                     "YeeHaw!",
                     "WooHoo!"
                     ]
-# available gestures and common names
-gesture_dict = {"Closed_Fist": "Closed Fist",
-                "Open_Palm": "High Five",
-                "Pointing_Up": "Point Up",
-                "Thumb_Down": "Thumbs Down",
-                "Thumb_Up": "Thumbs Up",
-                "Victory": "Peace Sign",
-                "ILoveYou": "I Love You"}
-gesture_dict_easy = {"Closed_Fist": "Closed Fist",
+
+# Hard difficulty, involves more complicated hand movements
+# and requires mobilization of the arm/wrist
+gesture_dict_hard = {"Closed_Fist": "Closed Fist",
                      "Open_Palm": "High Five",
-                     "Pointing_Up": "Point Up"}
-gesture_list = list(gesture_dict.keys())
-informal_gesture_list_names = list(gesture_dict.values())
+                     "Pointing_Up": "Point Up",
+                     "Thumb_Down": "Thumbs Down",
+                     "Thumb_Up": "Thumbs Up",
+                     "Victory": "Peace Sign",
+                     "ILoveYou": "I Love You"}
+
+# Medium difficulty, more complex hand motions that can be performed with
+# little arm/wrist mobilization
+gesture_dict_medium = {"Closed_Fist": "Closed Fist",
+                       "Open_Palm": "High Five",
+                       "Pointing_Up": "Point Up",
+                       "Thumb_Up": "Thumbs Up",
+                       "Victory": "Peace Sign"}
+
+# Easy difficulty, gripping motion
+gesture_dict_easy = {"Closed_Fist": "Closed Fist",
+                     "Open_Palm": "High Five"}
 
 
-def append_to_tbg_avg_csv(data_list):
+def get_gesture_dict(difficulty):
+    if difficulty == "easy":
+        return gesture_dict_easy
+    elif difficulty == "med":
+        return gesture_dict_medium
+    elif difficulty == "hard":
+        return gesture_dict_hard
+
+
+def get_gesture_list(difficulty):
+    if difficulty == "easy":
+        return list(gesture_dict_easy.keys())
+    elif difficulty == "med":
+        return list(gesture_dict_medium.keys())
+    elif difficulty == "hard":
+        return list(gesture_dict_hard.keys())
+
+
+def get_gesture_list_names(difficulty):
+    if difficulty == "easy":
+        return list(gesture_dict_easy.values())
+    elif difficulty == "med":
+        return list(gesture_dict_medium.values())
+    elif difficulty == "hard":
+        return list(gesture_dict_hard.values())
+
+
+def append_to_tbg_avg_csv(data_list, difficulty):
     avg_session_tbg = average_list(data_list)
-    if (avg_session_tbg is 0):
+    if avg_session_tbg is 0:
         print("No data recorded")
         return 0
-    with open('avg_tbg.csv', 'a') as file:
+    with open('avg_tbg_' + difficulty + '.csv', 'a') as file:
         file.write(str(avg_session_tbg) + "\n")  # newline instead of comma+space
 
 
@@ -67,7 +104,7 @@ def append_to_total(data_point):
 
 # Average datapoints
 def average_list(data_list):
-    if (len(data_list)<1):
+    if len(data_list) < 1:
         return 0
     total = 0
     for item in data_list:
@@ -86,7 +123,7 @@ def add_to_list(item):
 # length 2 buffer to ensure no duplicate pulls
 def add_to_pulled_gestures(item):
     size = len(pulled_gestures)
-    if size >= 2:
+    if size > 3:
         pulled_gestures.pop(0)
     pulled_gestures.append(item)
 
@@ -101,16 +138,27 @@ def get_latest_result():
 def get_latest_pulled_gesture():
     if len(pulled_gestures) == 0:
         return "empty"
-    return pulled_gestures[0]
+    return pulled_gestures[-1]
 
 
-def pick_next_gesture():
-    chosen_gesture = random.choice(gesture_list)
+def pick_next_gesture(gesture_list, easy_flag):
     # If the chosen gesture has been performed recently, keep trying until a new choice is chosen
-    if chosen_gesture in pulled_gestures:
-        while chosen_gesture in pulled_gestures:
-            chosen_gesture = random.choice(gesture_list)
-    add_to_pulled_gestures(chosen_gesture)
+    # Handling easy mode with 2 gestures
+    if easy_flag:
+        if get_latest_pulled_gesture() == "Open_Palm":
+            chosen_gesture = "Closed_Fist"
+        else:
+            chosen_gesture = "Open_Palm"
+        add_to_pulled_gestures(chosen_gesture)
+    else:
+        chosen_gesture = random.choice(gesture_list)
+        if get_latest_pulled_gesture() == "empty":
+            add_to_pulled_gestures("Thumb_up")
+            add_to_pulled_gestures("Pointing_Up")
+        if chosen_gesture in pulled_gestures:
+            while chosen_gesture in pulled_gestures:
+                chosen_gesture = random.choice(gesture_list)
+        add_to_pulled_gestures(chosen_gesture)
     return chosen_gesture, time.time()
 
 
@@ -202,24 +250,23 @@ def delete_csv(file_path="avg_tbg.csv"):
 def resize_and_pad(frame, screen_width, screen_height):
     h, w = frame.shape[:2]
     # det scaling factor
-    scale = min(screen_width / w, screen_height /h)
+    scale = min(screen_width / w, screen_height / h)
     new_w, new_h = int(w * scale), int(h * scale)
 
     # resize using aspect ratio
-    resized = cv2.resize(frame, (new_w, new_h), interpolation = cv2.INTER_AREA)
+    resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
     # black bar effect
     canvas = np.zeros((screen_height, screen_width, 3), dtype=np.uint8)
-    #Center new image
+    # Center new image
     x_offset = (screen_width - new_w) // 2
     y_offset = (screen_height - new_h) // 2
-    canvas[y_offset : y_offset+new_h, x_offset: x_offset+new_w] = resized
+    canvas[y_offset: y_offset + new_h, x_offset: x_offset + new_w] = resized
 
     return canvas, scale, (x_offset, y_offset)
 
 
 def start_screen():
-
     model_path = os.path.abspath("gesture_recognizer.task")
     options = GestureRecognizerOptions(
         base_options=BaseOptions(model_asset_path=model_path),
@@ -246,12 +293,12 @@ def start_screen():
         if not ret:
             break
         frame = cv2.flip(frame, 1)
-        
-        #Apply resize and bars
+
+        # Apply resize and bars
         frame, scale, (off_x, off_y) = resize_and_pad(frame, screen_width, screen_height)
-        
+
         # Print next gesture on screen
-        cv2.putText(frame, "Make a closed fist to start game", (off_x + 20, off_y + 50),
+        cv2.putText(frame, "Make a closed fist to play game", (off_x + 20, off_y + 50),
                     cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
         cv2.putText(frame, "Make a high five to view statistics", (off_x + 20, off_y + 110),
                     cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
@@ -259,7 +306,6 @@ def start_screen():
                     cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
         cv2.putText(frame, "WARNING: STAT RESET CANNOT BE REVERTED", (off_x + 20, off_y + 230),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5 * scale, (255, 255, 255), 2)
-
 
         # Convert to RGB
         image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -277,39 +323,40 @@ def start_screen():
         elif get_latest_result() == "Open_Palm":
             return "stats"
         elif get_latest_result() == "Thumb_Down":
-            delete_csv("avg_tbg.csv")
-            # Optional: give user feedback on screen
-            cv2.putText(frame, "Stats Reset!",
-                        (int(0.4 * screen_width), int(0.5 * screen_height)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3)
-            cv2.imshow("Gesture Recognition", frame)
-            cv2.waitKey(800)  # show message for a moment
             return "reset"
-
+            # Optional: give user feedback on screen
         cv2.imshow("Gesture Recognition", frame)
 
         if cv2.waitKey(1) & 0xFF == 27:  # ESC to quit
-            break
+            return "quit"
 
-def main_loop():
+
+def main_loop(difficulty):
+    easy_flag = False
+    # Handle difficulties
+    if difficulty == "easy":
+        easy_flag = True
+    gesture_list = get_gesture_list(difficulty)
+    gesture_dict = get_gesture_dict(difficulty)
+    informal_gesture_list_names = get_gesture_list_names(difficulty)
+
     start_time = 0
     end_time = 0
     time_elapsed = 0
     gesture_check = False
     score = 0
     model_path = os.path.abspath("gesture_recognizer.task")
-    pick_next_gesture()
-    pick_next_gesture()
+    pick_next_gesture(gesture_list, easy_flag)
+    pick_next_gesture(gesture_list, easy_flag)
     print(get_latest_pulled_gesture())
     game_time_start = 0
     first_loop = True
     tbg_list = []
-    #pull screen dimensions
+    # pull screen dimensions
     root = tk.Tk()
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
     root.destroy()
-
 
     options = GestureRecognizerOptions(
         base_options=BaseOptions(model_asset_path=model_path),
@@ -325,18 +372,16 @@ def main_loop():
     if not cap.isOpened():
         raise RuntimeError("Error opening webcam")
 
-
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
         frame = cv2.flip(frame, 1)
-        
-        #Apply resize and bars
+
+        # Apply resize and bars
         frame, scale, (off_x, off_y) = resize_and_pad(frame, screen_width, screen_height)
-        
-        
+
         f_h, f_w = frame.shape[:2]
 
         # This plays first when starting
@@ -347,12 +392,12 @@ def main_loop():
                 frame_splash, _, _ = resize_and_pad(cv2.flip(cap.read()[1], 1), screen_width, screen_height)
                 frame_splash[:] = (0, 255, 0)
                 (tw, th), _ = cv2.getTextSize(splash_text, cv2.FONT_HERSHEY_SIMPLEX, 3 * scale, 3)
-                text_x = int((f_w - tw) /2)
-                text_y = int((f_h + th) /2)
+                text_x = int((f_w - tw) / 2)
+                text_y = int((f_h + th) / 2)
 
                 cv2.putText(frame_splash, splash_text, (text_x, text_y),
-                            cv2.FONT_HERSHEY_SIMPLEX, 3 * scale, (0,0,0), 3)
-                
+                            cv2.FONT_HERSHEY_SIMPLEX, 3 * scale, (0, 0, 0), 3)
+
                 cv2.imshow("Gesture Recognition", frame_splash)
                 cv2.waitKey(400)  # Show green for x ms
             # Start timers after message is shown
@@ -362,12 +407,12 @@ def main_loop():
         box_x, box_y = off_x + 10, off_y + 10
         box_w, box_h = int(450 * scale), int(120 * scale)
 
-        cv2.rectangle(frame, (box_x, box_y), (box_x + box_w,  box_y + box_h), (128, 128, 128), -1)
+        cv2.rectangle(frame, (box_x, box_y), (box_x + box_w, box_y + box_h), (128, 128, 128), -1)
 
         game_time_elapsed = time_diff(time.time(), game_time_start)
 
         # Print next gesture on screen
-        current_gesture =  gesture_dict[get_latest_pulled_gesture()]
+        current_gesture = gesture_dict[get_latest_pulled_gesture()]
         cv2.putText(frame, current_gesture, (box_x + 10, box_y + int(40 * scale)),
                     cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
         stats_text = f"{round(time_elapsed, 2)}s | Timer: {int(60 - game_time_elapsed)}"
@@ -400,15 +445,15 @@ def main_loop():
             (tw, th), _ = cv2.getTextSize(celebration, cv2.FONT_HERSHEY_SIMPLEX, 2 * scale, 2)
             # Flash screen green
 
-            new_h, new_w = int((f_h - 2*off_y)), int((f_w - 2*off_x))
-            frame[off_y: off_y + new_h, off_x : off_x + new_w] = (0, 255, 0)
-            
-            cv2.putText(frame, celebration, (int((f_w - tw)/2), int((f_h - th)/2)),
+            new_h, new_w = int((f_h - 2 * off_y)), int((f_w - 2 * off_x))
+            frame[off_y: off_y + new_h, off_x: off_x + new_w] = (0, 255, 0)
+
+            cv2.putText(frame, celebration, (int((f_w - tw) / 2), int((f_h - th) / 2)),
                         cv2.FONT_HERSHEY_SIMPLEX, 2 * scale, (0, 0, 0), 2)
             cv2.imshow("Gesture Recognition", frame)
             cv2.waitKey(400)  # Show green for x ms
 
-            pick_next_gesture()
+            pick_next_gesture(gesture_list, easy_flag)
             print(get_latest_pulled_gesture())
             start_time = time.time()
 
@@ -421,19 +466,159 @@ def main_loop():
 
         if int(game_time_elapsed) >= 60:
             break
-    append_to_tbg_avg_csv(tbg_list)
+    append_to_tbg_avg_csv(tbg_list, difficulty)
     cap.release()
     cv2.destroyAllWindows()
 
 
-if __name__ == "__main__":
+def pick_difficulty():
+    model_path = os.path.abspath("gesture_recognizer.task")
+    options = GestureRecognizerOptions(
+        base_options=BaseOptions(model_asset_path=model_path),
+        running_mode=VisionRunningMode.LIVE_STREAM,
+        result_callback=handle_result
+    )
+    recognizer = GestureRecognizer.create_from_options(options)
+
+    cv2.namedWindow("Gesture Recognition", cv2.WND_PROP_FULLSCREEN)
+    cv2.setWindowProperty("Gesture Recognition", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+    root = tk.Tk()
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    root.destroy()
+
+    # Start webcam
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        raise RuntimeError("Error opening webcam")
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frame = cv2.flip(frame, 1)
+
+        # Apply resize and bars
+        frame, scale, (off_x, off_y) = resize_and_pad(frame, screen_width, screen_height)
+
+        # Print next gesture on screen
+        cv2.putText(frame, "Open Palm: Easy Difficulty", (off_x + 20, off_y + 50),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
+        cv2.putText(frame, "Point upwards: Medium Difficulty", (off_x + 20, off_y + 110),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
+        cv2.putText(frame, "Thumbs Up: Hard Difficulty", (off_x + 20, off_y + 170),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
+        # Convert to RGB
+        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        # Wrap in a MediaPipe Image
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
+
+        # Use video timestamp in ms
+        timestamp = int(cap.get(cv2.CAP_PROP_POS_MSEC))
+
+        recognizer.recognize_async(mp_image, timestamp)
+
+        if get_latest_result() == "Open_Palm":
+            return "easy"
+        elif get_latest_result() == "Pointing_Up":
+            return "med"
+        elif get_latest_result() == "Thumb_Up":
+            return "hard"
+            # Optional: give user feedback on screen
+        cv2.imshow("Gesture Recognition", frame)
+
+        if cv2.waitKey(1) & 0xFF == 27:  # ESC to quit
+            break
+
+
+def confirm_delete():
+    model_path = os.path.abspath("gesture_recognizer.task")
+    options = GestureRecognizerOptions(
+        base_options=BaseOptions(model_asset_path=model_path),
+        running_mode=VisionRunningMode.LIVE_STREAM,
+        result_callback=handle_result
+    )
+    recognizer = GestureRecognizer.create_from_options(options)
+
+    cv2.namedWindow("Gesture Recognition", cv2.WND_PROP_FULLSCREEN)
+    cv2.setWindowProperty("Gesture Recognition", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+    root = tk.Tk()
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    root.destroy()
+
+    # Start webcam
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        raise RuntimeError("Error opening webcam")
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frame = cv2.flip(frame, 1)
+
+        # Apply resize and bars
+        frame, scale, (off_x, off_y) = resize_and_pad(frame, screen_width, screen_height)
+
+        f_h, f_w = frame.shape[:2]
+
+        # Print next gesture on screen
+        cv2.putText(frame, "Thumbs Up: CONFIRM - RESET STATS", (off_x + 20, off_y + 50),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
+        cv2.putText(frame, "Closed Fist: CANCEL", (off_x + 20, off_y + 110),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
+
+        # Convert to RGB
+        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        # Wrap in a MediaPipe Image
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
+
+        # Use video timestamp in ms
+        timestamp = int(cap.get(cv2.CAP_PROP_POS_MSEC))
+
+        recognizer.recognize_async(mp_image, timestamp)
+
+        if get_latest_result() == "Closed_Fist":
+            break
+        elif get_latest_result() == "Thumb_Up":
+            confirmation = "Stats RESET!!"
+            (tw, th), _ = cv2.getTextSize(confirmation, cv2.FONT_HERSHEY_SIMPLEX, 2 * scale, 2)
+            # Flash screen green
+            new_h, new_w = int((f_h - 2 * off_y)), int((f_w - 2 * off_x))
+            frame[off_y: off_y + new_h, off_x: off_x + new_w] = (0, 255, 0)
+            cv2.putText(frame, confirmation, (int((f_w - tw) / 2), int((f_h - th) / 2)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 2 * scale, (0, 0, 0), 2)
+            cv2.imshow("Gesture Recognition", frame)
+            cv2.waitKey(400)  # Show green for x ms
+            delete_csv()
+            break
+            # Optional: give user feedback on screen
+        cv2.imshow("Gesture Recognition", frame)
+
+        if cv2.waitKey(1) & 0xFF == 27:  # ESC to quit
+            break
+
+
+def driver():
     player_choice = start_screen()
     if player_choice == "game":
-        main_loop()
+        difficulty = pick_difficulty()
+        main_loop(difficulty)
     elif player_choice == "stats":
         create_graph_from_csv("avg_tbg.csv")
         print("stats!")
-        #stats_screen()
+        # stats_screen()
     elif player_choice == "reset":
-        print("reset!")
+        confirm_delete()
+    elif player_choice == "quit":
+        return
+    driver()
 
+
+if __name__ == "__main__":
+    driver()
