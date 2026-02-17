@@ -22,8 +22,7 @@ results = []
 # Last 2 gestures chosen
 pulled_gestures = []
 
-celebration_list = ["FUCK YEAH!",
-                    "Yay!",
+celebration_list = ["Yay!",
                     "Good Job!",
                     "Keep Going!",
                     "Booya!",
@@ -196,7 +195,7 @@ def handle_result(result: vision.GestureRecognizerResult, unused_image, timestam
         gesture_name = top_gesture.category_name
         add_to_list(gesture_name)
 
-
+#TODO Graph each difficulty csv and overlay them
 def create_graph_from_csv(csv_path):
     # Read CSV with no header (just a single column of numbers)
     try:
@@ -610,9 +609,9 @@ def driver():
         difficulty = pick_difficulty()
         main_loop(difficulty)
     elif player_choice == "stats":
-        create_graph_from_csv("avg_tbg.csv")
+        create_graph_from_csv()
         print("stats!")
-        # stats_screen()
+        return
     elif player_choice == "reset":
         confirm_delete()
     elif player_choice == "quit":
