@@ -317,11 +317,13 @@ def start_screen():
 
         recognizer.recognize_async(mp_image, timestamp)
 
-        if get_latest_result() == "Closed_Fist":
+        gesture = get_latest_result()
+
+        if gesture == "Closed_Fist":
             return "game"
-        elif get_latest_result() == "Open_Palm":
+        elif gesture == "Open_Palm":
             return "stats"
-        elif get_latest_result() == "Thumb_Down":
+        elif gesture == "Thumb_Down":
             return "reset"
             # Optional: give user feedback on screen
         cv2.imshow("Gesture Recognition", frame)
@@ -609,7 +611,7 @@ def driver():
         difficulty = pick_difficulty()
         main_loop(difficulty)
     elif player_choice == "stats":
-        create_graph_from_csv()
+        #create_graph_from_csv()
         print("stats!")
         return
     elif player_choice == "reset":
