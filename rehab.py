@@ -397,7 +397,6 @@ def main_loop(difficulty):
         easy_flag = True
     gesture_list = get_gesture_list(difficulty)
     gesture_dict = get_gesture_dict(difficulty)
-    informal_gesture_list_names = get_gesture_list_names(difficulty)
 
     start_time = 0
     end_time = 0
@@ -585,7 +584,7 @@ def pick_difficulty():
             return "med"
         elif get_latest_result() == "Thumb_Up":
             return "hard"
-            # Optional: give user feedback on screen
+
         cv2.imshow("Gesture Recognition", frame)
 
         if cv2.waitKey(1) & 0xFF == 27:  # ESC to quit
