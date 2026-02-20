@@ -655,7 +655,6 @@ def confirm_delete():
             cv2.waitKey(400)  # Show green for x ms
             delete_csv()
             break
-            # Optional: give user feedback on screen
         cv2.imshow("Gesture Recognition", frame)
 
         if cv2.waitKey(1) & 0xFF == 27:  # ESC to quit
