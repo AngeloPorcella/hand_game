@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use("Agg")
 import cv2
 import mediapipe as mp
 import os
@@ -134,6 +136,10 @@ def get_latest_result():
     return results[-1]
 
 
+def clear_results():
+    results.clear()
+
+
 def get_latest_pulled_gesture():
     if len(pulled_gestures) == 0:
         return "empty"
@@ -195,55 +201,100 @@ def handle_result(result: vision.GestureRecognizerResult, unused_image, timestam
         gesture_name = top_gesture.category_name
         add_to_list(gesture_name)
 
-#TODO Graph each difficulty csv and overlay them
-def create_graph_from_csv(csv_path):
-    # Read CSV with no header (just a single column of numbers)
-    try:
-        df = pd.read_csv(csv_path, header=None, names=['avg_tbg'])
-    except FileNotFoundError:
-        print("No data, play a game first.")
-        return None
 
-    if df.empty:
-        print("No data in csv, play a game first.")
-        return None
+def create_graph_from_csvs():
 
-    # Extract y-values (averages) and x-values (index/attempt number)
-    y_values = df['avg_tbg'].astype(float).values
-    x_values = np.arange(1, len(y_values) + 1)
+    max_len = 0
 
-    # Make figure
-    fig, ax = plt.subplots(figsize=(4, 2))
-    ax.set_title("Average Time Between Gestures")
+    screen_width, screen_height = get_monitor_height_width()
+
+    dpi = 100
+
+    files = {
+        "Easy": "avg_tbg_easy.csv",
+        "Medium": "avg_tbg_med.csv",
+        "Hard": "avg_tbg_hard.csv"
+    }
+
+    data_found = False
+
+    fig = plt.figure(figsize=(screen_width / dpi, screen_height / dpi), dpi=dpi)
+    ax = fig.add_subplot(111)
+
+    ax.set_title("Average Time Between Gestures (ESC to QUIT)")
     ax.set_xlabel("Session")
     ax.set_ylabel("Avg Time")
 
-    # Plot line with points
-    ax.plot(x_values, y_values, marker='o', color='blue')
+    colors = {
+        "Easy": "green",
+        "Medium": "blue",
+        "Hard": "red"
+    }
 
-    plt.show()
+    for label, path in files.items():
+        if os.path.exists(path):
+            df = pd.read_csv(path, header=None, names=['avg_tbg'])
 
-    # Attach canvas to figure and draw
+            if not df.empty:
+                y_values = df['avg_tbg'].astype(float).values
+                x_values = np.arange(1, len(y_values) + 1)
+
+                ax.plot(x_values, y_values, marker='o', color=colors[label], label=label)
+                max_len = max(max_len, len(y_values))
+                data_found = True
+
+    if not data_found:
+        print("No data found in any CSV. Play a game first.")
+        return None
+
+    ax.set_xticks(np.arange(1, max_len + 1, 1))
+    ax.set_xlim(1, max_len)
+
+    ax.legend()
+    plt.tight_layout()
+
+    # Convert figure to OpenCV image
     canvas = FigureCanvas(fig)
     canvas.draw()
 
-    # Convert to NumPy array
     width, height = canvas.get_width_height()
     buf = np.frombuffer(canvas.buffer_rgba(), dtype=np.uint8)
-    image = buf.reshape((height, width, 4))  # RGBA image
+    image = buf.reshape((height, width, 4))
 
-    # Convert RGBA to BGR (OpenCV format)
     image_bgr = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
     return image_bgr
 
 
-def delete_csv(file_path="avg_tbg.csv"):
-    """Delete the CSV file if it exists."""
-    if os.path.exists(file_path):
-        os.remove(file_path)
-        print(f"{file_path} deleted (stats reset).")
-    else:
-        print(f"{file_path} not found (nothing to reset).")
+def get_monitor_height_width():
+    root = tk.Tk()
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    root.destroy()
+    return screen_width, screen_height
+
+
+def display_graph_screen():
+    cv2.destroyAllWindows()
+    cv2.namedWindow("Stats Graph", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("Stats Graph", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    screen_width, screen_height = get_monitor_height_width()
+    graph_img = create_graph_from_csvs()
+    graph_img = cv2.resize(graph_img, (screen_width, screen_height))
+    if graph_img is not None:
+        cv2.imshow("Stats Graph", graph_img)
+        cv2.waitKey(0)
+        return
+    return
+
+
+def delete_csv():
+    files = ["avg_tbg_easy.csv", "avg_tbg_med.csv", "avg_tbg_hard.csv"]
+    for file_path in files:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"{file_path} deleted (stats reset).")
+        else:
+            print(f"{file_path} not found (nothing to reset).")
 
 
 def resize_and_pad(frame, screen_width, screen_height):
@@ -266,6 +317,9 @@ def resize_and_pad(frame, screen_width, screen_height):
 
 
 def start_screen():
+
+    clear_results()
+
     model_path = os.path.abspath("gesture_recognizer.task")
     options = GestureRecognizerOptions(
         base_options=BaseOptions(model_asset_path=model_path),
@@ -287,6 +341,8 @@ def start_screen():
     if not cap.isOpened():
         raise RuntimeError("Error opening webcam")
 
+    # have a 1 loop buffer before recognizing a gesture (clear out old gestures)
+    first_loop_flag = True
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -318,15 +374,17 @@ def start_screen():
         recognizer.recognize_async(mp_image, timestamp)
 
         gesture = get_latest_result()
-
-        if gesture == "Closed_Fist":
-            return "game"
-        elif gesture == "Open_Palm":
-            return "stats"
-        elif gesture == "Thumb_Down":
-            return "reset"
+        if not first_loop_flag:
+            if gesture == "Closed_Fist":
+                return "game"
+            elif gesture == "Open_Palm":
+                return "stats"
+            elif gesture == "Thumb_Down":
+                return "reset"
             # Optional: give user feedback on screen
         cv2.imshow("Gesture Recognition", frame)
+
+        first_loop_flag = False
 
         if cv2.waitKey(1) & 0xFF == 27:  # ESC to quit
             return "quit"
@@ -606,20 +664,28 @@ def confirm_delete():
 
 
 def driver():
+    cv2.destroyAllWindows()
     player_choice = start_screen()
     if player_choice == "game":
         difficulty = pick_difficulty()
         main_loop(difficulty)
+        display_graph_screen()
+        cv2.waitKey(1)
+        time.sleep(0.5)
+        return 1
     elif player_choice == "stats":
-        #create_graph_from_csv()
-        print("stats!")
-        return
+        display_graph_screen()
+        cv2.waitKey(1)
+        time.sleep(0.5)
+        return 1
     elif player_choice == "reset":
         confirm_delete()
+        return 1
     elif player_choice == "quit":
-        return
-    driver()
-
+        return 0
 
 if __name__ == "__main__":
-    driver()
+    while True:
+        result = driver()
+        if result == 0:
+            break
