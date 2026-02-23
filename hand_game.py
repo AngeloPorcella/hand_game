@@ -197,10 +197,10 @@ def start_screen():
                     cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
         # Stats
         cv2.circle(frame, (middle[0], middle[1]), middle[2], (0, 0, 255), -1)
-        (text_w, text_h), _ = cv2.getTextSize("Stats", cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, 2)
+        (text_w, text_h), _ = cv2.getTextSize("Stats - (Future Feature)", cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, 2)
         text_x = middle[0] - text_w // 2
         text_y = middle[1] + middle[2] + text_h + 10
-        cv2.putText(frame, "Stats", (text_x, text_y),
+        cv2.putText(frame, "Stats - (Future Feature)", (text_x, text_y),
                     cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
         # Quit Message
         (text_w, text_h), _ = cv2.getTextSize("ESC to QUIT", cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, 2)
