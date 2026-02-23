@@ -682,6 +682,7 @@ def driver():
     elif player_choice == "quit":
         return 0
 
+
 if __name__ == "__main__":
     while True:
         result = driver()

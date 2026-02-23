@@ -99,6 +99,7 @@ def transform_hulls(hulls, scale, off_x, off_y):
 
 
 def start_screen():
+    shapes.clear()
     cv2.namedWindow("Bubble Pop", cv2.WND_PROP_FULLSCREEN)
     cv2.setWindowProperty("Bubble Pop", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
@@ -215,6 +216,7 @@ def start_screen():
 
 
 def game_screen(selection):
+    shapes.clear()
     cv2.namedWindow("Bubble Pop", cv2.WND_PROP_FULLSCREEN)
     cv2.setWindowProperty("Bubble Pop", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     # Initialize game parameters
@@ -246,6 +248,10 @@ def game_screen(selection):
 
     # Scaled radius
     radius = int(15 * scale)
+    # select random spawn rate
+    spawn_time_int = random.randint(25, 80)
+    spawn_time = spawn_time_int / 100
+    spawn_timer = time.time()
 
     while True:
         # Initialize frame and hand locations for the frame
@@ -254,10 +260,14 @@ def game_screen(selection):
         frame, scale, (off_x, off_y) = resize_and_pad(frame, screen_width, screen_height)
         # Transform hulls to new scale
         hulls = transform_hulls(hulls, scale, off_x, off_y)
-
         game_elapsed = time.time() - game_time
-        if random.randint(1, 200) == 1 or game_elapsed - int(game_elapsed) > 0.95:
+
+        if time.time() - spawn_timer > spawn_time:
             spawn_shape(off_x, off_y, visible_w, visible_h, radius)
+            # reset spawn rate after each spawn
+            spawn_time_int = random.randint(25, 80)
+            spawn_time = spawn_time_int / 100
+            spawn_timer = time.time()
 
         for shape in shapes[:]:
             # Take info from tuple
@@ -282,6 +292,7 @@ def game_screen(selection):
                     if check_collision(hull, shape):
                         shapes.remove(shape_new)
                         score += 1
+                        break
             cv2.circle(frame, (shape[0], shape[1]), shape[2], (color[0], color[1], color[2]), -1)
 
         # Display stats for game
