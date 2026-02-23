@@ -99,6 +99,11 @@ def append_to_tbg_avg_csv(data_list, difficulty):
         file.write(str(avg_session_tbg) + "\n")  # newline instead of comma+space
 
 
+def append_to_score_csv(score, difficulty):
+    with open('score_' + difficulty + '.csv', 'a') as file:
+        file.write(str(score) + "\n")  # newline instead of comma+space
+
+
 def append_to_total(data_point):
     print("This is where I will append to a file for future graphing")
 
@@ -202,19 +207,27 @@ def handle_result(result: vision.GestureRecognizerResult, unused_image, timestam
         add_to_list(gesture_name)
 
 
-def create_graph_from_csvs():
+def create_graph_from_csvs(score):
 
+    files = {}
     max_len = 0
 
     screen_width, screen_height = get_monitor_height_width()
 
     dpi = 100
 
-    files = {
-        "Easy": "avg_tbg_easy.csv",
-        "Medium": "avg_tbg_med.csv",
-        "Hard": "avg_tbg_hard.csv"
-    }
+    if score:
+        files = {
+            "Easy": "score_easy.csv",
+            "Medium": "score_med.csv",
+            "Hard": "score_hard.csv"
+        }
+    else:
+        files = {
+            "Easy": "avg_tbg_easy.csv",
+            "Medium": "avg_tbg_med.csv",
+            "Hard": "avg_tbg_hard.csv"
+        }
 
     data_found = False
 
@@ -278,7 +291,7 @@ def display_graph_screen():
     cv2.namedWindow("Stats Graph", cv2.WINDOW_NORMAL)
     cv2.setWindowProperty("Stats Graph", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     screen_width, screen_height = get_monitor_height_width()
-    graph_img = create_graph_from_csvs()
+    graph_img = create_graph_from_csvs(score=True)
     graph_img = cv2.resize(graph_img, (screen_width, screen_height))
     if graph_img is not None:
         cv2.imshow("Stats Graph", graph_img)
@@ -287,8 +300,12 @@ def display_graph_screen():
     return
 
 
-def delete_csv():
-    files = ["avg_tbg_easy.csv", "avg_tbg_med.csv", "avg_tbg_hard.csv"]
+def delete_csv(score):
+    files = []
+    if score:
+        files = ["score_easy.csv", "score_med.csv", "score_hard.csv"]
+    else:
+        files = ["avg_tbg_easy.csv", "avg_tbg_med.csv", "avg_tbg_hard.csv"]
     for file_path in files:
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -525,6 +542,7 @@ def main_loop(difficulty):
         if int(game_time_elapsed) >= 60:
             break
     append_to_tbg_avg_csv(tbg_list, difficulty)
+    append_to_score_csv(score, difficulty)
     cap.release()
     cv2.destroyAllWindows()
 
@@ -653,7 +671,7 @@ def confirm_delete():
                         cv2.FONT_HERSHEY_SIMPLEX, 2 * scale, (0, 0, 0), 2)
             cv2.imshow("Gesture Recognition", frame)
             cv2.waitKey(400)  # Show green for x ms
-            delete_csv()
+            delete_csv(score=True)
             break
         cv2.imshow("Gesture Recognition", frame)
 
