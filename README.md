@@ -1,5 +1,5 @@
-## Why I made this
-This project is a personal one, my father suffered a stroke in the spring of 2025. In his mid 60's, and in great health it came as a completely unexpected event. During the following days I spent in the hospital with him and my family, I kept busy working on this program as some way to wrestle control out of an upsetting situation. Overall the goal of this is to provide a free, easily accessible, rehabilitation tool that hopefully can make a difference for those battling with motor function recovery. I hope to get this in the hands of some professionals and get some feedback soon.
+## Why I made this:
+This project is a personal one, my father suffered a stroke in the spring of 2025. In his mid 60's, and in great health, it came as a total shock. During the following days I spent in the hospital with him and my family, I kept busy working on this program as some way to wrestle control out of an upsetting situation. Overall the goal of this is to provide a free, easily accessible, rehabilitation tool that hopefully can make a difference for those battling with motor function recovery. I hope to get this in the hands of some professionals and get some feedback soon.
 
 ## Overview
 This project consists of two applications:
