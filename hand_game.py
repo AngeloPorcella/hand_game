@@ -1,9 +1,17 @@
+import matplotlib
+matplotlib.use("Agg")
+import os
 import cv2
 import mediapipe as mp
 import numpy as np
 import random
 import time
 import tkinter as tk
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
+
 
 # Initialize MP hands
 mp_hands = mp.solutions.hands
@@ -96,6 +104,84 @@ def transform_hulls(hulls, scale, off_x, off_y):
             transformed.append([x, y])
         transformed_hulls.append(np.array(transformed, dtype=np.int32))
     return transformed_hulls
+
+
+def append_to_score_csv(score, difficulty):
+    with open('score_bp_' + difficulty + '.csv', 'a') as file:
+        file.write(str(score) + "\n")  # newline instead of comma+space
+
+
+def display_graph_screen():
+    cv2.destroyAllWindows()
+    cv2.namedWindow("Stats Graph", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("Stats Graph", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    graph_img = create_graph_from_csvs()
+    graph_img = cv2.resize(graph_img, (screen_width, screen_height))
+    if graph_img is not None:
+        cv2.imshow("Stats Graph", graph_img)
+        cv2.waitKey(0)
+        return
+    return
+
+
+def create_graph_from_csvs():
+
+    files = {}
+    max_len = 0
+
+    dpi = 100
+
+    files = {
+        "Easy": "score_bp_easy.csv",
+        "Hard": "score_bp_hard.csv"
+    }
+
+    data_found = False
+
+    fig = plt.figure(figsize=(screen_width / dpi, screen_height / dpi), dpi=dpi)
+    ax = fig.add_subplot(111)
+
+    ax.set_title("Scores (ESC to QUIT)")
+    ax.set_xlabel("Session")
+    ax.set_ylabel("Score")
+
+    colors = {
+        "Easy": "green",
+        "Hard": "pink"
+    }
+
+    for label, path in files.items():
+        if os.path.exists(path):
+            df = pd.read_csv(path, header=None, names=['data'])
+
+            if not df.empty:
+                y_values = df['data'].astype(float).values
+                x_values = np.arange(1, len(y_values) + 1)
+
+                ax.plot(x_values, y_values, marker='o', color=colors[label], label=label)
+                max_len = max(max_len, len(y_values))
+                data_found = True
+
+    if not data_found:
+        print("No data found in any CSV. Play a game first.")
+        return None
+
+    ax.set_xticks(np.arange(1, max_len + 1, 1))
+    ax.set_xlim(1, max_len)
+
+    ax.legend()
+    plt.tight_layout()
+
+    # Convert figure to OpenCV image
+    canvas = FigureCanvas(fig)
+    canvas.draw()
+
+    width, height = canvas.get_width_height()
+    buf = np.frombuffer(canvas.buffer_rgba(), dtype=np.uint8)
+    image = buf.reshape((height, width, 4))
+
+    image_bgr = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
+    return image_bgr
 
 
 def start_screen():
@@ -197,10 +283,10 @@ def start_screen():
                     cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
         # Stats
         cv2.circle(frame, (middle[0], middle[1]), middle[2], (0, 0, 255), -1)
-        (text_w, text_h), _ = cv2.getTextSize("Stats - (Future Feature)", cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, 2)
+        (text_w, text_h), _ = cv2.getTextSize("Stats", cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, 2)
         text_x = middle[0] - text_w // 2
         text_y = middle[1] + middle[2] + text_h + 10
-        cv2.putText(frame, "Stats - (Future Feature)", (text_x, text_y),
+        cv2.putText(frame, "Stats", (text_x, text_y),
                     cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, (255, 255, 255), 2)
         # Quit Message
         (text_w, text_h), _ = cv2.getTextSize("ESC to QUIT", cv2.FONT_HERSHEY_SIMPLEX, 1 * scale, 2)
@@ -227,11 +313,13 @@ def game_screen(selection):
     timer_diff = 100
     score_diff = 35
     color = (255, 0, 0)
+    difficulty = "easy"
     # Hard difficulty
     if selection == 2:
         timer_diff = 50
         score_diff = 55
         color = (255, 0, 255)
+        difficulty = "hard"
 
     # Start webcam
     cap = cv2.VideoCapture(0)
@@ -313,6 +401,7 @@ def game_screen(selection):
 
         # Win condition
         if game_elapsed >= game_length:
+            append_to_score_csv(score, difficulty)
             if score >= score_diff:
                 return True
             else:
@@ -382,14 +471,14 @@ def driver():
     selection = start_screen()
     if selection == 0:
         print("don't have these yet")
-        # print_stats()
+        display_graph_screen()
     elif selection == 3:
         print("quitting")
         return
     else:
-        print("temp")
         win_flag = game_screen(selection)
         end_screen(win_flag)
+        display_graph_screen()
     driver()
 
 

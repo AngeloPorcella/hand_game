@@ -104,10 +104,6 @@ def append_to_score_csv(score, difficulty):
         file.write(str(score) + "\n")  # newline instead of comma+space
 
 
-def append_to_total(data_point):
-    print("This is where I will append to a file for future graphing")
-
-
 # Average datapoints
 def average_list(data_list):
     if len(data_list) < 1:
@@ -234,9 +230,9 @@ def create_graph_from_csvs(score):
     fig = plt.figure(figsize=(screen_width / dpi, screen_height / dpi), dpi=dpi)
     ax = fig.add_subplot(111)
 
-    ax.set_title("Average Time Between Gestures (ESC to QUIT)")
+    ax.set_title("Total Gestures Made (ESC to QUIT)")
     ax.set_xlabel("Session")
-    ax.set_ylabel("Avg Time")
+    ax.set_ylabel("Gestures Made")
 
     colors = {
         "Easy": "green",
@@ -246,10 +242,10 @@ def create_graph_from_csvs(score):
 
     for label, path in files.items():
         if os.path.exists(path):
-            df = pd.read_csv(path, header=None, names=['avg_tbg'])
+            df = pd.read_csv(path, header=None, names=['data'])
 
             if not df.empty:
-                y_values = df['avg_tbg'].astype(float).values
+                y_values = df['data'].astype(float).values
                 x_values = np.arange(1, len(y_values) + 1)
 
                 ax.plot(x_values, y_values, marker='o', color=colors[label], label=label)
@@ -261,6 +257,7 @@ def create_graph_from_csvs(score):
         return None
 
     ax.set_xticks(np.arange(1, max_len + 1, 1))
+
     ax.set_xlim(1, max_len)
 
     ax.legend()
